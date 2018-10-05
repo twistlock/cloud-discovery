@@ -5,6 +5,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ecr"
 	"github.com/twistlock/cloud-discovery/internal/shared"
+	"time"
 )
 
 type ecrClient struct {
@@ -12,7 +13,7 @@ type ecrClient struct {
 }
 
 func NewECRClient(opt AWSOptions) *ecrClient {
-	return &ecrClient{opt:opt}
+	return &ecrClient{opt: opt}
 }
 
 func (r *ecrClient) Discover() (*shared.CloudDiscoveryResult, error) {
@@ -25,7 +26,7 @@ func (r *ecrClient) Discover() (*shared.CloudDiscoveryResult, error) {
 
 	result := shared.CloudDiscoveryResult{
 		Region: r.opt.Region,
-		Type:"ECR",
+		Type:   "ECR",
 	}
 	var nextToken *string
 	for {
@@ -33,10 +34,22 @@ func (r *ecrClient) Discover() (*shared.CloudDiscoveryResult, error) {
 		if err != nil {
 			return nil, err
 		} else if out == nil {
-			return nil, fmt.Errorf("failed to query AWS repositories")
+			return nil, fmt.Errorf("failed to describe repositories")
 		}
 		for _, repo := range out.Repositories {
-			result.Assets = append(result.Assets, shared.CloudAsset{ID: aws.StringValue(repo.RepositoryName)})
+			result.Assets = append(result.Assets, shared.CloudAsset{ID: aws.StringValue(repo.RepositoryName), Data: struct {
+				ARN           *string    `json:"arn"`
+				CreatedAt     *time.Time `json:"createdAt"`
+				RegistryId    *string    `json:"registryId"`
+				RepositoryArn *string    `json:"repositoryArn"`
+				RepositoryUri *string    `json:"repositoryUri"`
+				Version       *string    `json:"version"`
+			}{
+				CreatedAt:     repo.CreatedAt,
+				RegistryId:    repo.RegistryId,
+				RepositoryArn: repo.RepositoryArn,
+				RepositoryUri: repo.RepositoryUri,
+			}})
 		}
 		if out.NextToken == nil {
 			break

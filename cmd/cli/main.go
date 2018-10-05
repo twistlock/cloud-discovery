@@ -4,15 +4,15 @@ import (
 	"flag"
 	"fmt"
 	"github.com/twistlock/cloud-discovery/internal/provider/aws"
+	"github.com/twistlock/cloud-discovery/internal/shared"
 	"os"
 	"text/tabwriter"
 )
 
-var (
-	username, password string
-)
-
 func main() {
+	var (
+		username, password string
+	)
 	flag.StringVar(&username, "username", "", "Username")
 	flag.StringVar(&password, "password", "", "Password")
 	flag.Parse()
@@ -22,15 +22,12 @@ func main() {
 	if password == "" {
 		panic("password is missing")
 	}
-	results := aws.Discover(username, password)
-
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', tabwriter.AlignRight|tabwriter.Debug)
 	fmt.Fprintln(w, "Type\tRegion\tID")
-	for _, r := range results.Results {
-		for _, asset := range r.Assets {
-			fmt.Fprintf(w, "%s\t%s\t%s\n", r.Type, r.Region, asset.ID)
+	aws.Discover(username, password, func(result shared.CloudDiscoveryResult) {
+		for _, asset := range result.Assets {
+			fmt.Fprintf(w, "%s\t%s\t%s\n", result.Type, result.Region, asset.ID)
 		}
-
-	}
-	w.Flush()
+		w.Flush()
+	})
 }

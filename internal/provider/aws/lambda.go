@@ -46,7 +46,37 @@ func (s *lambdaClient) Discover() (*shared.CloudDiscoveryResult, error) {
 			return nil, fmt.Errorf("received nil function list from AWS %s", s.opt.Region)
 		}
 		for _, f := range functions.Functions {
-			res = append(res, shared.CloudAsset{ID:         *f.FunctionName})
+			res = append(res, shared.CloudAsset{ID: *f.FunctionName, Data: struct {
+				CodeSha256   *string `json:"codeSha256"`
+				CodeSize     *int64  `json:"codeSize"`
+				Description  *string `json:"description"`
+				FunctionArn  *string `json:"functionARN"`
+				FunctionName *string `json:"functionName"`
+				Handler      *string `json:"handler"`
+				LastModified *string `json:"lastModified"`
+				MasterArn    *string `json:"masterArn"`
+				MemorySize   *int64  `json:"memorySize"`
+				RevisionId   *string `json:"revisionId"`
+				Role         *string `json:"role"`
+				Runtime      *string `json:"runtime"`
+				Timeout      *int64  ` json:"timeout"`
+				Version      *string ` json:"version"`
+			}{
+				CodeSha256:   f.CodeSha256,
+				CodeSize:     f.CodeSize,
+				Description:  f.Description,
+				FunctionArn:  f.FunctionArn,
+				FunctionName: f.FunctionName,
+				Handler:      f.Handler,
+				LastModified: f.LastModified,
+				MasterArn:    f.MasterArn,
+				MemorySize:   f.MemorySize,
+				RevisionId:   f.RevisionId,
+				Role:         f.Role,
+				Runtime:      f.Runtime,
+				Timeout:      f.Timeout,
+				Version:      f.Version,
+			}})
 		}
 
 		if functions.NextMarker == nil {
@@ -56,5 +86,5 @@ func (s *lambdaClient) Discover() (*shared.CloudDiscoveryResult, error) {
 		nextMarker = *functions.NextMarker
 	}
 
-	return &shared.CloudDiscoveryResult{Assets:res, Region: s.opt.Region, Type:"Lambda"}, nil
+	return &shared.CloudDiscoveryResult{Assets: res, Region: s.opt.Region, Type: "Lambda"}, nil
 }

@@ -1,10 +1,10 @@
 package aws
 
 import (
-	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/twistlock/cloud-discovery/internal/shared"
+	"time"
 )
 
 type eksClient struct {
@@ -24,7 +24,7 @@ func (c *eksClient) Discover() (result *shared.CloudDiscoveryResult, err error) 
 	}
 	svc := eks.New(sess)
 
-	// List regional EKS endpoints names
+	// List regional EKS assets names
 	var clusters []*string
 	out, err := svc.ListClusters(nil)
 	if err != nil {
@@ -40,14 +40,28 @@ func (c *eksClient) Discover() (result *shared.CloudDiscoveryResult, err error) 
 	}
 
 	// For each cluster name, fetch its information
-	var endpoints []shared.CloudAsset
+	var assets []shared.CloudAsset
 	for _, cluster := range clusters {
 		out, err := svc.DescribeCluster(&eks.DescribeClusterInput{Name: cluster})
 		if err != nil {
 			return nil, err
 		}
-		endpoints = append(endpoints, shared.CloudAsset{ ID: aws.StringValue(out.Cluster.Name), })
+		assets = append(assets, shared.CloudAsset{ID: aws.StringValue(out.Cluster.Name),
+			Data: struct {
+				ARN       *string    `json:"arn"`
+				CreatedAt *time.Time `json:"createdAt"`
+				Endpoint  *string    `json:"endpoint"`
+				RoleArn   *string    `json:"roleArn"`
+				Status    *string    `json:"status"`
+				Version   *string    `json:"version"`
+			}{
+				ARN:       out.Cluster.Arn,
+				CreatedAt: out.Cluster.CreatedAt,
+				RoleArn:   out.Cluster.RoleArn,
+				Status:    out.Cluster.Status,
+				Version:   out.Cluster.Version,
+			},
+		})
 	}
-	fmt.Println("Found AWS EKS endpoints", len(endpoints))
-	return &shared.CloudDiscoveryResult{Assets:endpoints, Region: c.options.Region, Type:"EKS"}, nil
+	return &shared.CloudDiscoveryResult{Assets: assets, Region: c.options.Region, Type: "EKS"}, nil
 }
