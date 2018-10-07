@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/subtle"
+	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/json"
@@ -11,6 +12,7 @@ import (
 	"fmt"
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
+	"github.com/twistlock/cloud-discovery/internal/nmap"
 	"github.com/twistlock/cloud-discovery/internal/provider/aws"
 	"github.com/twistlock/cloud-discovery/internal/shared"
 	"io"
@@ -39,7 +41,7 @@ func main() {
 	}
 
 	if config.username == "" {
-		config.username = "damin"
+		config.username = "admin"
 		log.Warnf("Username is not set. Setting it to %q", config.username)
 	}
 	if config.password == "" {
@@ -69,12 +71,10 @@ func main() {
 	}
 
 	r := mux.NewRouter()
-	// Basic auth
-	username, password := "admin", "admin"
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			user, pass, ok := r.BasicAuth()
-			if !ok || subtle.ConstantTimeCompare([]byte(user), []byte(username)) != 1 || subtle.ConstantTimeCompare([]byte(pass), []byte(password)) != 1 {
+			if !ok || subtle.ConstantTimeCompare([]byte(user), []byte(config.username)) != 1 || subtle.ConstantTimeCompare([]byte(pass), []byte(config.password)) != 1 {
 				w.Header().Set("WWW-Authenticate", `Basic realm="Please enter your username and password for this site"`)
 				w.WriteHeader(401)
 				w.Write([]byte("Unauthorized.\n"))
@@ -83,56 +83,133 @@ func main() {
 			next.ServeHTTP(w, r)
 		})
 	})
-	r.HandleFunc("/discover", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		limitedReader := &io.LimitedReader{R: r.Body, N: 100000}
-		defer r.Body.Close()
-		body, err := ioutil.ReadAll(limitedReader)
-		if err != nil {
-			log.Errorf("failed reading body %v", err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
+
+	close := func(v interface{}) {
+		if closer, ok := v.(io.Closer); ok {
+			closer.Close()
 		}
-		var req shared.CloudDiscoveryRequest
-		if err := json.Unmarshal(body, &req); err != nil {
+	}
+
+	handleConn := func(w http.ResponseWriter, r *http.Request, out interface{}, validateFN func() error) (conn io.Writer, stop bool) {
+		conn, err := func() (io.Writer, error) {
+			limitedReader := &io.LimitedReader{R: r.Body, N: 100000}
+			defer r.Body.Close()
+			body, err := ioutil.ReadAll(limitedReader)
 			if err != nil {
-				log.Errorf("failed unmarshling body %v", err)
-				http.Error(w, "malformed output", http.StatusBadRequest)
-				return
+				return nil, fmt.Errorf("failed reading body %v", err)
 			}
-		}
-		hj, ok := w.(http.Hijacker)
-		if !ok {
-			log.Errorf("failed upgrading connection %v", err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		conn, _, err := hj.Hijack()
+			if err := json.Unmarshal(body, out); err != nil {
+				if err != nil {
+					return nil, badRequestErr(fmt.Sprintf("bad input format %v", err))
+				}
+			}
+			if err := validateFN(); err != nil {
+				return nil, badRequestErr(err.Error())
+			}
+			hj, ok := w.(http.Hijacker)
+			if !ok {
+				return nil, fmt.Errorf("failed upgrading connection")
+			}
+			conn, _, err := hj.Hijack()
+			if err != nil {
+				return nil, fmt.Errorf("failed upgrading connection %v", err)
+			}
+			return conn, nil
+		}()
 		if err != nil {
-			log.Errorf("failed upgrading connection %v", err)
-			w.WriteHeader(http.StatusInternalServerError)
+			close(conn)
+			log.Errorf(err.Error())
+			if isBadRequestErr(err) {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+			} else {
+				http.Error(w, "", http.StatusInternalServerError)
+			}
+			return nil, true
+		}
+		return conn, false
+	}
+
+	r.HandleFunc("/nmap", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req shared.CloudNmapRequest
+		wr, stop := handleConn(w, r, &req, func() error {
+			if req.Subnet == "" && !req.AutoDetect {
+				return badRequestErr("missing subnet")
+			}
+			if req.AutoDetect {
+				resp, err := http.Get("http://169.254.169.254/latest/meta-data/mac")
+				if err != nil {
+					return err
+				}
+				defer resp.Body.Close()
+				mac, err := ioutil.ReadAll(resp.Body)
+				if err != nil {
+					return err
+				}
+				resp, err = http.Get(fmt.Sprintf("http://169.254.169.254/latest/meta-data/network/interfaces/macs/%s/subnet-ipv4-cidr-block", string(mac)))
+				if err != nil {
+					return err
+				}
+				defer resp.Body.Close()
+				subnet, err := ioutil.ReadAll(resp.Body)
+				if err != nil {
+					return err
+				}
+				req.Subnet = string(subnet)
+				return err
+			}
+			return nil
+		})
+		if stop {
 			return
 		}
-		defer conn.Close()
+		defer close(wr)
+		tw := tabwriter.NewWriter(wr, 0, 0, 2, ' ', tabwriter.AlignRight|tabwriter.Debug)
+
+		var nmapWriter io.Writer
+		if req.Debug {
+			nmapWriter = wr
+		} else {
+			nmapWriter = os.Stdout
+		}
+		if err := nmap.Nmap(req.Subnet, 30, 30000, nmapWriter, func(result shared.CloudNmapResult) {
+			fmt.Fprintf(tw, "%s\t%d\t%s\t%t\n", result.Host, result.Port, result.App, result.Insecure)
+			tw.Flush()
+		}); err != nil {
+			log.Error(err)
+		}
+	})).Methods(http.MethodPost)
+
+	r.HandleFunc("/discover", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req shared.CloudDiscoveryRequest
+		wr, stop := handleConn(w, r, &req, func() error {
+			for _, cred := range req.Credentials {
+				if cred.ID == "" {
+					return fmt.Errorf("missing credential ID")
+				}
+				if cred.Secret == "" {
+					return fmt.Errorf("missing credential secret")
+				}
+			}
+			return nil
+		})
+		if stop {
+			return
+		}
+		defer close(wr)
+
 		var writer responseWriter
 		if r.URL.Query().Get("format") == "json" {
-			writer = NewJsonResponseWriter(conn)
+			writer = NewJsonResponseWriter(wr)
 		} else {
-			writer = NewCSVResponseWriter(conn)
+			writer = NewCSVResponseWriter(wr)
 		}
 		for _, cred := range req.Credentials {
-			if cred.ID == "" {
-				http.Error(w, "missing credential ID", http.StatusBadRequest)
-				return
-			}
-			if cred.Secret == "" {
-				http.Error(w, "missing credential secret", http.StatusBadRequest)
-				return
-			}
 			aws.Discover(cred.ID, cred.Secret, writer.Write)
 		}
-	})).Methods("POST")
+	})).Methods(http.MethodPost)
 
 	s := &http.Server{
+		TLSNextProto: make(map[string]func(*http.Server, *tls.Conn, http.Handler)), // Disable http2
 		Addr:           fmt.Sprintf(":%s", config.port),
 		Handler:        r,
 		ReadTimeout:    10 * time.Second,
@@ -232,4 +309,15 @@ func genCert(certPath, keyPath, host string) error {
 		return err
 	}
 	return nil
+}
+
+type badRequestErr string
+
+func (e badRequestErr) Error() string {
+	return string(e)
+}
+
+func isBadRequestErr(err error) bool {
+	_, ok := err.(badRequestErr)
+	return ok
 }

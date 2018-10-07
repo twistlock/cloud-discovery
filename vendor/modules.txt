@@ -33,6 +33,12 @@ github.com/aws/aws-sdk-go/private/protocol/json/jsonutil
 github.com/aws/aws-sdk-go/private/protocol/query
 github.com/aws/aws-sdk-go/private/protocol/query/queryutil
 github.com/aws/aws-sdk-go/private/protocol/xml/xmlutil
+# github.com/globalsign/mgo v0.0.0-20180615134936-113d3961e731
+github.com/globalsign/mgo
+github.com/globalsign/mgo/bson
+github.com/globalsign/mgo/internal/sasl
+github.com/globalsign/mgo/internal/scram
+github.com/globalsign/mgo/internal/json
 # github.com/go-ini/ini v1.25.4
 github.com/go-ini/ini
 # github.com/gorilla/context v1.1.1

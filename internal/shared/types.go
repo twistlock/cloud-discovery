@@ -39,6 +39,21 @@ type Credentials struct {
 	Secret   string   `json:"secret"`   // Secret is the access key secret
 }
 
+// CloudDiscoveryRequest repsents a request to scan a cloud provider using a set of credentials
 type CloudDiscoveryRequest struct {
 	Credentials []Credentials `json:"credentials"`
 }
+
+type CloudNmapRequest struct {
+	Subnet string `json:"subnet"` // Subnet is the subnet to scan
+	AutoDetect bool `json:"auto"` // AutoDetect indicates subnet should be auto-detected
+	Debug bool `json:"debug"` // Debug indicates whether to output debug data from nmap
+}
+
+type CloudNmapResult struct {
+	Host string `json:"host"`
+	Port int `json:"port"`
+	App string `json:"app"`
+	Insecure bool `json:"insecure"`
+}
+
