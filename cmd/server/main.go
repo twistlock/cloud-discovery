@@ -163,7 +163,7 @@ func main() {
 			return
 		}
 		defer close(wr)
-		tw := tabwriter.NewWriter(wr, 0, 0, 2, ' ', tabwriter.AlignRight|tabwriter.Debug)
+		tw := newTabWriter(wr)
 
 		var nmapWriter io.Writer
 		if req.Debug {
@@ -171,12 +171,13 @@ func main() {
 		} else {
 			nmapWriter = os.Stdout
 		}
+		fmt.Fprintf(tw, "\nHost\tPort\tApp\tInsecure\t\n")
 		if err := nmap.Nmap(req.Subnet, 30, 30000, nmapWriter, func(result shared.CloudNmapResult) {
-			fmt.Fprintf(tw, "%s\t%d\t%s\t%t\n", result.Host, result.Port, result.App, result.Insecure)
-			tw.Flush()
+			fmt.Fprintf(tw, "%s\t%d\t%s\t%t\t\n", result.Host, result.Port, result.App, result.Insecure)
 		}); err != nil {
 			log.Error(err)
 		}
+		tw.Flush()
 	})).Methods(http.MethodPost)
 
 	r.HandleFunc("/discover", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -201,7 +202,7 @@ func main() {
 		if r.URL.Query().Get("format") == "json" {
 			writer = NewJsonResponseWriter(wr)
 		} else {
-			writer = NewCSVResponseWriter(wr)
+			writer = NewTabResponseWriter(wr)
 		}
 		for _, cred := range req.Credentials {
 			aws.Discover(cred.ID, cred.Secret, writer.Write)
@@ -209,7 +210,7 @@ func main() {
 	})).Methods(http.MethodPost)
 
 	s := &http.Server{
-		TLSNextProto: make(map[string]func(*http.Server, *tls.Conn, http.Handler)), // Disable http2
+		TLSNextProto:   make(map[string]func(*http.Server, *tls.Conn, http.Handler)), // Disable http2
 		Addr:           fmt.Sprintf(":%s", config.port),
 		Handler:        r,
 		ReadTimeout:    10 * time.Second,
@@ -227,8 +228,10 @@ type csvResponseWriter struct {
 	tw *tabwriter.Writer
 }
 
-func NewCSVResponseWriter(writer io.Writer) *csvResponseWriter {
-	return &csvResponseWriter{tw: tabwriter.NewWriter(writer, 0, 0, 1, ' ', tabwriter.AlignRight|tabwriter.Debug)}
+func NewTabResponseWriter(writer io.Writer) *csvResponseWriter {
+	tw := newTabWriter(writer)
+	fmt.Fprintf(tw, "Type\tRegion\tID\n")
+	return &csvResponseWriter{tw: tw}
 }
 
 func (w *csvResponseWriter) Write(result shared.CloudDiscoveryResult) {
@@ -320,4 +323,8 @@ func (e badRequestErr) Error() string {
 func isBadRequestErr(err error) bool {
 	_, ok := err.(badRequestErr)
 	return ok
+}
+
+func newTabWriter(wr io.Writer) *tabwriter.Writer {
+	return tabwriter.NewWriter(wr, 0, 0, 5, ' ', tabwriter.TabIndent)
 }

@@ -3,11 +3,11 @@ package nmap
 import (
 	"fmt"
 	"github.com/globalsign/mgo"
+	log "github.com/sirupsen/logrus"
 	"github.com/twistlock/cloud-discovery/internal/shared"
 	"io"
 	"io/ioutil"
 	"net/http"
-	log "github.com/sirupsen/logrus"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -17,7 +17,7 @@ import (
 
 func Nmap(subnet string, minPort, maxPort int, nmapWriter io.Writer, emitFn func(result shared.CloudNmapResult)) error {
 	log.Debugf("Scanning %s", subnet)
-	dir, err := ioutil.TempDir("" , "nmap")
+	dir, err := ioutil.TempDir("", "nmap")
 	if err != nil {
 		return err
 	}
@@ -47,9 +47,9 @@ func Nmap(subnet string, minPort, maxPort int, nmapWriter io.Writer, emitFn func
 	}
 
 	const (
-		mongo = "mongod"
+		mongo          = "mongod"
 		dockerRegistry = "docker registry"
-		mysql = "mysql"
+		mysql          = "mysql"
 	)
 
 	for _, host := range nmap.Hosts {
@@ -60,12 +60,12 @@ func Nmap(subnet string, minPort, maxPort int, nmapWriter io.Writer, emitFn func
 			if host.Addresses[0].Addr == "0.0.0.0" {
 				continue
 			}
+			client := http.Client{Timeout: time.Second * 2}
 			addr := fmt.Sprintf("%s:%d", host.Addresses[0].Addr, port.PortId)
 			service := port.Service.Name
 			log.Debugf("Checking port %v %v %v", host.Addresses[0], port.PortId, port.Protocol)
 			if service == "unknown" || (port.PortId >= 5000 && port.PortId <= 6000 && port.Protocol == "tcp") {
-				client := http.Client{Timeout: time.Second * 2,}
-				resp, err := client.Get(fmt.Sprintf("http://%s/v2", addr))
+				resp, err := client.Get(fmt.Sprintf("http://%s/v2/_catalog", addr))
 				if err == nil {
 					out, _ := ioutil.ReadAll(resp.Body)
 					resp.Body.Close()
@@ -90,21 +90,26 @@ func Nmap(subnet string, minPort, maxPort int, nmapWriter io.Writer, emitFn func
 				}
 			}
 			result := shared.CloudNmapResult{
-				Host:host.Addresses[0].Addr,
-				Port:port.PortId,
-				App:service,
+				Host: host.Addresses[0].Addr,
+				Port: port.PortId,
+				App:  service,
 			}
-
-			if service == "mongod" {
+			switch service {
+			case mongo:
 				conn, err := mgo.DialWithTimeout(fmt.Sprintf("mongodb://%s", addr), time.Second*1)
 				if err == nil {
 					_, err := conn.DatabaseNames()
 					if err == nil {
-						fmt.Println("insecure %v", err)
 						result.Insecure = true
-					} else {
-						fmt.Println("secure")
 					}
+				}
+			case dockerRegistry:
+				resp, err := client.Get(fmt.Sprintf("http://%s/v2/_catalog", addr))
+				if err == nil {
+					if resp.StatusCode == http.StatusOK {
+						result.Insecure = true
+					}
+					resp.Body.Close()
 				}
 			}
 
