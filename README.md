@@ -16,7 +16,7 @@ Cloud Discovery is [another](https://github.com/docker/swarmkit/pull/2239) [open
    By default the service generates self-signed certificates for localhost usage.
 4. TLS_CERT_KEY - This variable determines the path to the TLS certificate key inside the container.
 
-# Example usages
+# Example usage
 
 ## Start the container
 
