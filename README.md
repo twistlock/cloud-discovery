@@ -4,7 +4,7 @@ Cloud Discovery provides point in time enumeration of all the cloud native platf
 
 Cloud Discovery connects to cloud providers' native platform APIs to discover services and their metadata and requires only read permissions.  Cloud Discovery also has a network discovery option that uses port scanning to sweep IP ranges and discover cloud native infrastructure and apps, such as Docker Registries and Kubernetes API servers, with weak settings or authentication.  This is useful to discover 'self-installed' cloud native components not provided as a service by a cloud provider, such as a Docker Registry running on an EC2 instance.  Cloud Discovery is provided as a simple Docker container image that can be run anywhere and works well for both interactive use and automation.
 
-Cloud Discovery is another open source contribution provided by [Twistlock](https://www.twistlock.com).
+Cloud Discovery is [another](https://github.com/docker/swarmkit/pull/2239) [open](https://github.com/moby/moby/pull/15365) [source](https://github.com/moby/moby/pull/20111) [contribution](https://github.com/moby/moby/pull/21556) [provided](https://github.com/docker/distribution/pull/2362 ) by [Twistlock](https://www.twistlock.com).
 
 <img src="http://www.twistlock.com/wp-content/uploads/2017/11/Twistlock_Logo-Lockup_RGB.png" width="400">
 
