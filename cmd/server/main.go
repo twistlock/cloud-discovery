@@ -166,7 +166,7 @@ func main() {
 		tw := newTabWriter(wr)
 
 		var nmapWriter io.Writer
-		if req.Debug {
+		if req.Verbose {
 			nmapWriter = wr
 		} else {
 			nmapWriter = os.Stdout

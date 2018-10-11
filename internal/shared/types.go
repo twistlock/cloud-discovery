@@ -47,7 +47,7 @@ type CloudDiscoveryRequest struct {
 type CloudNmapRequest struct {
 	Subnet     string `json:"subnet"` // Subnet is the subnet to scan
 	AutoDetect bool   `json:"auto"`   // AutoDetect indicates subnet should be auto-detected
-	Debug      bool   `json:"debug"`  // Debug indicates whether to output debug data from nmap
+	Verbose    bool   `json:"verbose"`  // Verbose indicates whether to output debug data from nmap
 }
 
 type CloudNmapResult struct {

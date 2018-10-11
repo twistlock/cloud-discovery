@@ -28,7 +28,7 @@ func Nmap(subnet string, minPort, maxPort int, nmapWriter io.Writer, emitFn func
 		"nmap", subnet,
 		"-v", "1",
 		"-sT",
-		" --max-retries", "0",
+		"--max-retries", "0",
 		"-p", fmt.Sprintf("%d-%d", minPort, maxPort),
 		"-oX", resultPath,
 		"--max-scan-delay", "3")
