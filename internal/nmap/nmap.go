@@ -2,7 +2,7 @@ package nmap
 
 import (
 	"fmt"
-	"github.com/globalsign/mgo"
+	"github.com/lair-framework/go-nmap"
 	log "github.com/sirupsen/logrus"
 	"github.com/twistlock/cloud-discovery/internal/shared"
 	"io"
@@ -11,7 +11,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"time"
 )
 
@@ -41,78 +40,66 @@ func Nmap(subnet string, minPort, maxPort int, nmapWriter io.Writer, emitFn func
 	if err != nil {
 		return err
 	}
-	nmap, err := Parse(out)
+	nmap, err := nmap.Parse(out)
 	if err != nil {
 		return err
 	}
-
-	const (
-		mongo          = "mongod"
-		dockerRegistry = "docker registry"
-		mysql          = "mysql"
-	)
-
+	mappers := []Mapper{
+		NewMongoMapper(),
+		NewMysqlMapper(),
+		NewRegistryMapper(),
+		NewPortMapper("kube-apiserver", 6443),
+		NewPortMapper("kube-router", 20244),
+		NewPortMapper("kube-proxy", 10256),
+		NewPortMapper("kubelet", 10255),
+		NewKubeletMapper()}
+	client := http.Client{Timeout: time.Second * 2}
 	for _, host := range nmap.Hosts {
-		for _, port := range host.Ports {
+		for _, targetPort := range host.Ports {
 			if len(host.Addresses) == 0 {
 				continue
 			}
 			if host.Addresses[0].Addr == "0.0.0.0" {
 				continue
 			}
-			client := http.Client{Timeout: time.Second * 2}
-			addr := fmt.Sprintf("%s:%d", host.Addresses[0].Addr, port.PortId)
-			service := port.Service.Name
-			log.Debugf("Checking port %v %v %v", host.Addresses[0], port.PortId, port.Protocol)
-			if service == "unknown" || (port.PortId >= 5000 && port.PortId <= 6000 && port.Protocol == "tcp") {
+			addr := fmt.Sprintf("%s:%d", host.Addresses[0].Addr, targetPort.PortId)
+			app := targetPort.Service.Name
+			log.Debugf("Checking targetPort %v %v %v", host.Addresses[0], targetPort.PortId, targetPort.Protocol)
+			if app == "unknown" || app == "" || (targetPort.PortId >= 5000 && targetPort.PortId <= 30000 && targetPort.Protocol == "tcp") {
 				resp, err := client.Get(fmt.Sprintf("http://%s/v2/_catalog", addr))
 				if err == nil {
 					out, _ := ioutil.ReadAll(resp.Body)
 					resp.Body.Close()
-					respBody := strings.ToLower(string(out))
-					if svc := func() string {
-						if strings.Contains(respBody, "mongo") {
-							return mongo
+					body := string(out)
+					for _, mapper := range mappers {
+						if mapper.HasApp(targetPort.PortId, resp.Header, body) {
+							app = mapper.App()
+							break
 						}
-						if strings.Contains(respBody, "packets") && strings.Contains(respBody, "order") {
-							return mysql
-
+					}
+				}
+			}
+			if app == "" { // Fallback to known port
+				for _, mapper := range mappers {
+					for _, port := range mapper.KnownPorts() {
+						if port == targetPort.PortId {
+							app = mapper.App()
+							break
 						}
-						for h, _ := range resp.Header {
-							if strings.Contains(strings.ToLower(h), "docker") {
-								return dockerRegistry
-							}
-						}
-						return ""
-					}(); svc != "" {
-						service = svc
 					}
 				}
 			}
 			result := shared.CloudNmapResult{
 				Host: host.Addresses[0].Addr,
-				Port: port.PortId,
-				App:  service,
+				Port: targetPort.PortId,
+				App:  app,
 			}
-			switch service {
-			case mongo:
-				conn, err := mgo.DialWithTimeout(fmt.Sprintf("mongodb://%s", addr), time.Second*1)
-				if err == nil {
-					_, err := conn.DatabaseNames()
-					if err == nil {
-						result.Insecure = true
-					}
-				}
-			case dockerRegistry:
-				resp, err := client.Get(fmt.Sprintf("http://%s/v2/_catalog", addr))
-				if err == nil {
-					if resp.StatusCode == http.StatusOK {
-						result.Insecure = true
-					}
-					resp.Body.Close()
+			for _, mapper := range mappers {
+				if mapper.App() == app {
+					result.Insecure, _ = mapper.Insecure(addr)
+					break
 				}
 			}
-
 			emitFn(result)
 		}
 	}
