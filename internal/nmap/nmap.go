@@ -67,6 +67,7 @@ func Nmap(subnet string, minPort, maxPort int, nmapWriter io.Writer, emitFn func
 			log.Debugf("Checking targetPort %v %v %v", host.Addresses[0], targetPort.PortId, targetPort.Protocol)
 			if app == "unknown" || app == "" || (targetPort.PortId >= 5000 && targetPort.PortId <= 30000 && targetPort.Protocol == "tcp") {
 				resp, err := client.Get(fmt.Sprintf("http://%s/v2/_catalog", addr))
+				found := false
 				if err == nil {
 					out, _ := ioutil.ReadAll(resp.Body)
 					resp.Body.Close()
@@ -74,17 +75,19 @@ func Nmap(subnet string, minPort, maxPort int, nmapWriter io.Writer, emitFn func
 					for _, mapper := range mappers {
 						if mapper.HasApp(targetPort.PortId, resp.Header, body) {
 							app = mapper.App()
+							found = true
 							break
 						}
 					}
 				}
-			}
-			if app == "" { // Fallback to known port
-				for _, mapper := range mappers {
-					for _, port := range mapper.KnownPorts() {
-						if port == targetPort.PortId {
-							app = mapper.App()
-							break
+				if !found {
+					// Fallback to known port
+					for _, mapper := range mappers {
+						for _, port := range mapper.KnownPorts() {
+							if port == targetPort.PortId {
+								app = mapper.App()
+								break
+							}
 						}
 					}
 				}
