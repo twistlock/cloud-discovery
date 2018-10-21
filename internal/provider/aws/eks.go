@@ -11,34 +11,31 @@ type eksClient struct {
 	options AWSOptions
 }
 
+// NewEKSClient creates a new EKS (Amazon Elastic Kubernetes Service) client
 func NewEKSClient(options AWSOptions) *eksClient {
 	return &eksClient{options: options}
 }
 
-// Clusters returns a list of endpoints representing EKS clusters
 func (c *eksClient) Discover() (result *shared.CloudDiscoveryResult, err error) {
-	// Setup aws eks service object
 	sess, err := CreateAWSSession(&c.options)
 	if err != nil {
 		return nil, err
 	}
 	svc := eks.New(sess)
 
-	// List regional EKS assets names
 	var clusters []*string
-	out, err := svc.ListClusters(nil)
-	if err != nil {
-		return nil, err
-	}
-	clusters = append(clusters, out.Clusters...)
-	for out.NextToken != nil {
-		out, err = svc.ListClusters(&eks.ListClustersInput{NextToken: out.NextToken})
+	var nextToken *string
+	for {
+		out, err := svc.ListClusters(&eks.ListClustersInput{NextToken: nextToken})
 		if err != nil {
 			return nil, err
 		}
 		clusters = append(clusters, out.Clusters...)
+		nextToken = out.NextToken
+		if nextToken == nil {
+			break
+		}
 	}
-
 	// For each cluster name, fetch its information
 	var assets []shared.CloudAsset
 	for _, cluster := range clusters {

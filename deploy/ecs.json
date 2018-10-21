@@ -1,0 +1,18 @@
+{
+  "containerDefinitions": [
+    {
+      "name": "twistlock-cloud-discovery",
+      "image": "docker.io/twistlock/cloud-discovery:latest",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 9083,
+          "hostPort": 9083
+        }
+      ],
+      "memory": 500,
+      "cpu": 10
+    }
+  ],
+  "family": "twistlock_cloud_discovery"
+}

@@ -26,7 +26,7 @@ func (m *kubeletMapper) Insecure(addr string) (bool, string) {
 	if err == nil {
 		resp.Body.Close()
 		if resp.StatusCode == http.StatusOK {
-			return true, "Missing authorization for metrics API"
+			return true, "missing authorization for metrics API"
 		}
 	}
 	return false, ""

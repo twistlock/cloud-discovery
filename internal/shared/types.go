@@ -50,9 +50,11 @@ type CloudNmapRequest struct {
 	Verbose    bool   `json:"verbose"` // Verbose indicates whether to output debug data from nmap
 }
 
+// CloudNmapResult is a single host-port result of a cloud discovery nmap query
 type CloudNmapResult struct {
-	Host     string `json:"host"`
-	Port     int    `json:"port"`
-	App      string `json:"app"`
-	Insecure bool   `json:"insecure"`
+	Host     string `json:"host"`     // Host is the target host IP
+	Port     int    `json:"port"`     // Port is the target host port
+	App      string `json:"app"`      // App is the name of the detected app
+	Insecure bool   `json:"insecure"` // Insecure indicates whether the app has secure
+	Reason   string `json:"reason"`   // Reason provides detailed reasoning when the app is insecure
 }

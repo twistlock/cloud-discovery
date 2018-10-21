@@ -33,7 +33,7 @@ func (m *registryMapper) Insecure(addr string) (bool, string) {
 	if err == nil {
 		resp.Body.Close()
 		if resp.StatusCode == http.StatusOK {
-			return true, "Missing authorization"
+			return true, "missing authorization"
 		}
 	}
 	return false, ""

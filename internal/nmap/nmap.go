@@ -15,14 +15,14 @@ import (
 )
 
 func Nmap(subnet string, minPort, maxPort int, nmapWriter io.Writer, emitFn func(result shared.CloudNmapResult)) error {
-	log.Debugf("Scanning %s", subnet)
+	log.Debugf("Scanning subnet %s", subnet)
 	dir, err := ioutil.TempDir("", "nmap")
 	if err != nil {
 		return err
 	}
 	defer os.RemoveAll(dir)
 	resultPath := filepath.Join(dir, "nmap")
-	// https://nmap.org/book/nping-man-ou	tput-options.html
+	// https://nmap.org/book/nping-man-output-options.html
 	cmd := exec.Command(
 		"nmap", subnet,
 		"-v", "1",
@@ -64,7 +64,7 @@ func Nmap(subnet string, minPort, maxPort int, nmapWriter io.Writer, emitFn func
 			}
 			addr := fmt.Sprintf("%s:%d", host.Addresses[0].Addr, targetPort.PortId)
 			app := targetPort.Service.Name
-			log.Debugf("Checking targetPort %v %v %v", host.Addresses[0], targetPort.PortId, targetPort.Protocol)
+			log.Debugf("Checking target port %v %v %v", host.Addresses[0], targetPort.PortId, targetPort.Protocol)
 			if app == "unknown" || app == "" || (targetPort.PortId >= 5000 && targetPort.PortId <= 30000 && targetPort.Protocol == "tcp") {
 				resp, err := client.Get(fmt.Sprintf("http://%s/v2/_catalog", addr))
 				found := false
@@ -99,8 +99,12 @@ func Nmap(subnet string, minPort, maxPort int, nmapWriter io.Writer, emitFn func
 			}
 			for _, mapper := range mappers {
 				if mapper.App() == app {
-					result.Insecure, _ = mapper.Insecure(addr)
-					break
+					insecure, reason := mapper.Insecure(addr)
+					if insecure { // Multiple mappers can apply to the same app, take precedence based on insecure findings
+						result.Insecure = insecure
+						result.Reason = reason
+						break
+					}
 				}
 			}
 			emitFn(result)

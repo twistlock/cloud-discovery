@@ -12,6 +12,7 @@ type ecrClient struct {
 	opt AWSOptions
 }
 
+// NewECRClient creates a new ECR client (Amazon Elastic Container Registry)
 func NewECRClient(opt AWSOptions) *ecrClient {
 	return &ecrClient{opt: opt}
 }

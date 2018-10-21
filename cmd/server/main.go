@@ -171,9 +171,9 @@ func main() {
 		} else {
 			nmapWriter = os.Stdout
 		}
-		fmt.Fprintf(tw, "\nHost\tPort\tApp\tInsecure\t\n")
+		fmt.Fprintf(tw, "\nHost\tPort\tApp\tInsecure\tReason\t\n")
 		if err := nmap.Nmap(req.Subnet, 30, 30000, nmapWriter, func(result shared.CloudNmapResult) {
-			fmt.Fprintf(tw, "%s\t%d\t%s\t%t\t\n", result.Host, result.Port, result.App, result.Insecure)
+			fmt.Fprintf(tw, "%s\t%d\t%s\t%t\t%s\t\n", result.Host, result.Port, result.App, result.Insecure, result.Reason)
 		}); err != nil {
 			log.Error(err)
 		}
