@@ -9,11 +9,11 @@ import (
 )
 
 type ecrClient struct {
-	opt AWSOptions
+	opt Options
 }
 
 // NewECRClient creates a new ECR client (Amazon Elastic Container Registry)
-func NewECRClient(opt AWSOptions) *ecrClient {
+func NewECRClient(opt Options) *ecrClient {
 	return &ecrClient{opt: opt}
 }
 

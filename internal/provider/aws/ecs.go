@@ -8,11 +8,11 @@ import (
 )
 
 type ecsClient struct {
-	opt AWSOptions
+	opt Options
 }
 
 // NewECSClient creates a new ECS (Amazon Elastic Container Service) client
-func NewECSClient(opt AWSOptions) *ecsClient {
+func NewECSClient(opt Options) *ecsClient {
 	return &ecsClient{opt: opt}
 }
 

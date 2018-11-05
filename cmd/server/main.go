@@ -14,6 +14,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/twistlock/cloud-discovery/internal/nmap"
 	"github.com/twistlock/cloud-discovery/internal/provider/aws"
+	"github.com/twistlock/cloud-discovery/internal/provider/gcp"
 	"github.com/twistlock/cloud-discovery/internal/shared"
 	"io"
 	"io/ioutil"
@@ -184,7 +185,7 @@ func main() {
 		var req shared.CloudDiscoveryRequest
 		wr, stop := handleConn(w, r, &req, func() error {
 			for _, cred := range req.Credentials {
-				if cred.ID == "" {
+				if cred.Provider == shared.ProviderAWS && cred.ID == "" {
 					return fmt.Errorf("missing credential ID")
 				}
 				if cred.Secret == "" {
@@ -205,7 +206,12 @@ func main() {
 			writer = NewTabResponseWriter(wr)
 		}
 		for _, cred := range req.Credentials {
-			aws.Discover(cred.ID, cred.Secret, writer.Write)
+			switch cred.Provider {
+			case shared.ProviderGCP:
+				gcp.Discover(cred.Secret, writer.Write)
+			default:
+				aws.Discover(cred.ID, cred.Secret, writer.Write)
+			}
 		}
 	})).Methods(http.MethodPost)
 

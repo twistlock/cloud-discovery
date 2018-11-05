@@ -8,11 +8,11 @@ import (
 )
 
 type eksClient struct {
-	options AWSOptions
+	options Options
 }
 
 // NewEKSClient creates a new EKS (Amazon Elastic Kubernetes Service) client
-func NewEKSClient(options AWSOptions) *eksClient {
+func NewEKSClient(options Options) *eksClient {
 	return &eksClient{options: options}
 }
 

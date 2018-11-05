@@ -30,6 +30,7 @@ type Provider string
 
 const (
 	ProviderAWS Provider = "aws"
+	ProviderGCP Provider = "gcp"
 )
 
 // Credentials holds authentication data for a specific provider

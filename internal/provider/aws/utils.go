@@ -14,7 +14,7 @@ import (
 )
 
 // AWSSession creates a session for AWS services handling
-func CreateAWSSession(opt *AWSOptions) (*session.Session, error) {
+func CreateAWSSession(opt *Options) (*session.Session, error) {
 	var creds *credentials.Credentials
 	cfg := defaults.Config()
 	if opt.UseAWSRole {
@@ -41,7 +41,7 @@ func CreateAWSSession(opt *AWSOptions) (*session.Session, error) {
 
 func Discover(username, password string, emitFn func(result shared.CloudDiscoveryResult)) {
 	var discoverers []shared.Discoverer
-	opt := AWSOptions{
+	opt := Options{
 		AccessKeyID:     username,
 		SecretAccessKey: password,
 	}

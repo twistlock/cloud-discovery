@@ -7,17 +7,17 @@ import (
 )
 
 type lambdaClient struct {
-	opt AWSOptions
+	opt Options
 }
 
 // NewServerlessClientAWS create a new aws serverless client
-func NewLambdaClient(opt AWSOptions) *lambdaClient {
+func NewLambdaClient(opt Options) *lambdaClient {
 	return &lambdaClient{
 		opt: opt,
 	}
 }
 
-// Functions retrieves a list of functions for the settings provided to the client
+// Discover retrieves a list of functions for the settings provided to the client
 func (s *lambdaClient) Discover() (*shared.CloudDiscoveryResult, error) {
 	var res []shared.CloudAsset
 	session, err := CreateAWSSession(&s.opt)

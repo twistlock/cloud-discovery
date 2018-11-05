@@ -47,6 +47,12 @@ curl -k -v -u admin:pass --raw --data \
 '{"credentials": [{"id":"<AWS_ACCESS_KEY>","secret":"<AWS_ACCESS_PASSWORD>"}]}' https://localhost:9083/discover?format=json
 ```
 
+## Scan all GCP assets and show full metadata for each of them
+```sh
+SERVICE_ACCOUNT=$(cat <service_account_secret> | base64 | tr -d '\n')
+curl -k -v -u admin:pass --raw --data '{"credentials": [{"secret":"'${SERVICE_ACCOUNT}'", "provider":"gcp"}]}' https://localhost:9083/discover?format=json
+```
+
 ## Port scan a subnet to discover cloud native infrastructure and apps
 Scan all open ports and automatically detect insecure apps (native cloud apps configured without proper authorization)
 Remark: If the container runs in AWS cluster, the subnet can be automatically extracted from [AWS metadata API server](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-metadata.html)
