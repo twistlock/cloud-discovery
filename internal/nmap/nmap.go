@@ -2,7 +2,7 @@ package nmap
 
 import (
 	"fmt"
-	"github.com/lair-framework/go-nmap"
+	gonmap "github.com/lair-framework/go-nmap"
 	log "github.com/sirupsen/logrus"
 	"github.com/twistlock/cloud-discovery/internal/shared"
 	"io"
@@ -14,7 +14,24 @@ import (
 	"time"
 )
 
-func Nmap(subnet string, minPort, maxPort int, nmapWriter io.Writer, emitFn func(result shared.CloudNmapResult)) error {
+func Nmap(wr io.Writer, subnet string, verbose bool) {
+	tw := shared.NewTabWriter(wr)
+	var nmapWriter io.Writer
+	if verbose {
+		nmapWriter = wr
+	} else {
+		nmapWriter = os.Stdout
+	}
+	fmt.Fprintf(tw, "\nHost\tPort\tApp\tInsecure\tReason\t\n")
+	if err := nmap(subnet, 30, 30000, nmapWriter, func(result shared.CloudNmapResult) {
+		fmt.Fprintf(tw, "%s\t%d\t%s\t%t\t%s\t\n", result.Host, result.Port, result.App, result.Insecure, result.Reason)
+	}); err != nil {
+		log.Error(err)
+	}
+	tw.Flush()
+}
+
+func nmap(subnet string, minPort, maxPort int, nmapWriter io.Writer, emitFn func(result shared.CloudNmapResult)) error {
 	log.Debugf("Scanning subnet %s", subnet)
 	dir, err := ioutil.TempDir("", "nmap")
 	if err != nil {
@@ -40,7 +57,7 @@ func Nmap(subnet string, minPort, maxPort int, nmapWriter io.Writer, emitFn func
 	if err != nil {
 		return err
 	}
-	nmap, err := nmap.Parse(out)
+	nmap, err := gonmap.Parse(out)
 	if err != nil {
 		return err
 	}

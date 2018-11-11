@@ -33,6 +33,14 @@ const (
 	ProviderGCP Provider = "gcp"
 )
 
+// Format is the output format
+type Format string
+
+const (
+	FormatJson Format = "json"
+	FormatCSV  Format = "csv"
+)
+
 // Credentials holds authentication data for a specific provider
 type Credentials struct {
 	Provider Provider `json:"provider"` // Provider is the authentication provider (AWS/Azure/GCP)

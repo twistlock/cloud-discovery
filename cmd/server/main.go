@@ -13,8 +13,7 @@ import (
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
 	"github.com/twistlock/cloud-discovery/internal/nmap"
-	"github.com/twistlock/cloud-discovery/internal/provider/aws"
-	"github.com/twistlock/cloud-discovery/internal/provider/gcp"
+	"github.com/twistlock/cloud-discovery/internal/provider"
 	"github.com/twistlock/cloud-discovery/internal/shared"
 	"io"
 	"io/ioutil"
@@ -22,7 +21,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"text/tabwriter"
 	"time"
 )
 
@@ -164,21 +162,8 @@ func main() {
 			return
 		}
 		defer close(wr)
-		tw := newTabWriter(wr)
+		nmap.Nmap(wr, req.Subnet, req.Verbose)
 
-		var nmapWriter io.Writer
-		if req.Verbose {
-			nmapWriter = wr
-		} else {
-			nmapWriter = os.Stdout
-		}
-		fmt.Fprintf(tw, "\nHost\tPort\tApp\tInsecure\tReason\t\n")
-		if err := nmap.Nmap(req.Subnet, 30, 30000, nmapWriter, func(result shared.CloudNmapResult) {
-			fmt.Fprintf(tw, "%s\t%d\t%s\t%t\t%s\t\n", result.Host, result.Port, result.App, result.Insecure, result.Reason)
-		}); err != nil {
-			log.Error(err)
-		}
-		tw.Flush()
 	})).Methods(http.MethodPost)
 
 	r.HandleFunc("/discover", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -198,21 +183,7 @@ func main() {
 			return
 		}
 		defer close(wr)
-
-		var writer responseWriter
-		if r.URL.Query().Get("format") == "json" {
-			writer = NewJsonResponseWriter(wr)
-		} else {
-			writer = NewTabResponseWriter(wr)
-		}
-		for _, cred := range req.Credentials {
-			switch cred.Provider {
-			case shared.ProviderGCP:
-				gcp.Discover(cred.Secret, writer.Write)
-			default:
-				aws.Discover(cred.ID, cred.Secret, writer.Write)
-			}
-		}
+		provider.Discover(req.Credentials, wr, shared.Format(r.URL.Query().Get("format")))
 	})).Methods(http.MethodPost)
 
 	s := &http.Server{
@@ -224,41 +195,6 @@ func main() {
 		MaxHeaderBytes: 1 << 20,
 	}
 	log.Fatal(s.ListenAndServeTLS(config.tlsCertPath, config.tlsKeyPath))
-}
-
-type responseWriter interface {
-	Write(shared.CloudDiscoveryResult)
-}
-
-type csvResponseWriter struct {
-	tw *tabwriter.Writer
-}
-
-func NewTabResponseWriter(writer io.Writer) *csvResponseWriter {
-	tw := newTabWriter(writer)
-	fmt.Fprintf(tw, "Type\tRegion\tID\n")
-	return &csvResponseWriter{tw: tw}
-}
-
-func (w *csvResponseWriter) Write(result shared.CloudDiscoveryResult) {
-	for _, asset := range result.Assets {
-		fmt.Fprintf(w.tw, "%s\t%s\t%s\n", result.Type, result.Region, asset.ID)
-	}
-	w.tw.Flush()
-}
-
-type jsonResposeWriter struct {
-	w io.Writer
-}
-
-func NewJsonResponseWriter(w io.Writer) *jsonResposeWriter {
-	return &jsonResposeWriter{w: w}
-}
-
-func (w *jsonResposeWriter) Write(result shared.CloudDiscoveryResult) {
-	out, _ := json.Marshal(result)
-	w.w.Write(out)
-	w.w.Write([]byte("\n"))
 }
 
 func genCert(certPath, keyPath, host string) error {
@@ -329,8 +265,4 @@ func (e badRequestErr) Error() string {
 func isBadRequestErr(err error) bool {
 	_, ok := err.(badRequestErr)
 	return ok
-}
-
-func newTabWriter(wr io.Writer) *tabwriter.Writer {
-	return tabwriter.NewWriter(wr, 0, 0, 5, ' ', tabwriter.TabIndent)
 }
