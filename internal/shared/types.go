@@ -29,8 +29,9 @@ type Discoverer interface {
 type Provider string
 
 const (
-	ProviderAWS Provider = "aws"
-	ProviderGCP Provider = "gcp"
+	ProviderAWS   Provider = "aws"
+	ProviderGCP   Provider = "gcp"
+	ProviderAzure Provider = "azure"
 )
 
 // Format is the output format

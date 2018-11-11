@@ -3,6 +3,7 @@ package provider
 import (
 	"fmt"
 	"github.com/twistlock/cloud-discovery/internal/provider/aws"
+	"github.com/twistlock/cloud-discovery/internal/provider/azure"
 	"github.com/twistlock/cloud-discovery/internal/provider/gcp"
 	"github.com/twistlock/cloud-discovery/internal/shared"
 	"io"
@@ -20,6 +21,8 @@ func Discover(creds []shared.Credentials, wr io.Writer, format shared.Format) {
 		switch cred.Provider {
 		case shared.ProviderGCP:
 			gcp.Discover(cred.Secret, writer.Write)
+		case shared.ProviderAzure:
+			azure.Discover(cred.Secret, writer.Write)
 		default:
 			aws.Discover(cred.ID, cred.Secret, writer.Write)
 		}
