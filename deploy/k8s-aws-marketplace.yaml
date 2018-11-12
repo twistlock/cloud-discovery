@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloud-discovery
+  labels:
+    run: cloud-discovery
+spec:
+  ports:
+  - port: 9083
+    targetPort: 9083
+    protocol: TCP
+  selector:
+    run: cloud-discovery
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloud-discovery
+  labels:
+    app: cloud-discovery
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cloud-discovery
+  template:
+    metadata:
+      labels:
+        app: cloud-discovery
+    spec:
+      containers:
+      - name: cloud-discovery
+        image: 217273820646.dkr.ecr.us-east-1.amazonaws.com/2fb5feaf-4b5a-4144-b8b5-98e7bf6d587f/cg-1179130891/cloud-discovery:1.0-latest
+        ports:
+        - containerPort: 9083
