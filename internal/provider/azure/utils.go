@@ -7,7 +7,7 @@ import (
 	"github.com/twistlock/cloud-discovery/internal/shared"
 )
 
-// Discover discovers all GCR assets
+// Discover discovers all ACR assets
 func Discover(serviceAccount string, emitFn func(result shared.CloudDiscoveryResult)) {
 	sa, err := base64.RawStdEncoding.DecodeString(serviceAccount)
 	if err != nil {
