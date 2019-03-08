@@ -12,7 +12,7 @@ import (
 
 // Discover discovers all GCR assets
 func Discover(serviceAccount string, emitFn func(result shared.CloudDiscoveryResult)) {
-	sa, err := base64.RawStdEncoding.DecodeString(serviceAccount)
+	sa, err := base64.StdEncoding.DecodeString(serviceAccount)
 	if err != nil {
 		log.Errorf(err.Error())
 		return
