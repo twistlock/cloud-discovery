@@ -47,6 +47,21 @@ curl -k -v -u admin:pass --raw --data \
 '{"credentials": [{"id":"<AWS_ACCESS_KEY>","secret":"<AWS_ACCESS_PASSWORD>"}]}' https://localhost:9083/discover?format=json
 ```
 
+## Scan and list all GCP assets
+```sh
+SERVICE_ACCOUNT=$(cat <service_account_secret> | base64 | tr -d '\n')
+curl -k -v -u admin:pass --raw --data '{"credentials": [{"secret":"'${SERVICE_ACCOUNT}'", "provider":"gcp"}]}' https://localhost:9083/discover
+```
+Output
+```sh
+Type        Region            ID
+GKE         us-central1-a     cluster-1
+GKE         us-central1-a     cluster-2
+GCR         gcr.io            registry-1
+GCR         gcr.io            registry-2
+Functions   us-central1       function-1
+```
+
 ## Scan all GCP assets and show full metadata for each of them
 ```sh
 SERVICE_ACCOUNT=$(cat <service_account_secret> | base64 | tr -d '\n')
