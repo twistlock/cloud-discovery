@@ -4,7 +4,7 @@
 - Cloud Discovery provides point in time enumeration of all the cloud native platform services, such as container registries, managed Kubernetes platforms, and serverless services used across your cloud providers, accounts, and regions. It’s a powerful tool for audit and security practitioners that want a simple way to discover all the 'unknown unknowns' across environments without having to manually login to multiple provider consoles, click through many pages, and manually export the data.
 - Cloud Discovery connects to cloud providers' native platform APIs to discover services and their metadata and requires only read permissions. Cloud Discovery also has a network discovery option that uses port scanning to sweep IP ranges and discover cloud native infrastructure and apps, such as Docker Registries and Kubernetes API servers, with weak settings or authentication. This is useful to discover 'self-installed' cloud native components not provided as a service by a cloud provider, such as a Docker Registry running on an EC2 instance. Cloud Discovery is provided as a simple Docker container image that can be run anywhere and works well for both interactive use and automation.
 - Cloud Discovery is another open source contribution provided by Twistlock.
-- <<TODO: link to the published solution on GCP Marketplace.>>
+- [GCP Marketplace](https://console.cloud.google.com/marketplace/details/twistlock/cloud-discovery)
 
 ### One-time setup
 - No special setup is necessary to use Cloud Discovery other that having a container runtime or orchestrator that can run the Cloud Discovery Docker container image.
